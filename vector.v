@@ -24,14 +24,14 @@ match v with
 end.
 
 Definition rect (A : Type) (P:forall {n}, vector A (S n) -> Type)
- (bas: forall (a : A){n} (v' : vector A (S n)), P v')
+ (bas: forall (a : A), P (insert a (empty _)))
  (rect: forall a {n} (v: vector A (S n)) , P v -> P (insert a v)) : 
    forall {n} (v: vector A (S n)), P v.
  refine (fix rectS_fix {n} (v: vector A (S n)) {struct v} : P _ v :=
  match v in (vector _ (S n)) return P _ v with
  |@insert _ 0 a v' =>
    (match v' in vector _ 0 with
-     |@empty _ => bas a _ _
+     |@empty _ => bas a
      |@insert _ l _ _ => _
    end)
  |@insert _ (S nn') a v1 => _
@@ -157,17 +157,16 @@ Qed.
 
 Theorem less_0_false : forall x, ~ S x <= 0. auto with arith. Qed.
 
-Fixpoint cut {A}{n}{y} (x : vector A n) (len : y <= n) : vector A y.
-  destruct y.
-  constructor.
-  destruct x.
-  refine (insert a (cut _ _ _ x _)).
-  apply le_S_n in len.
-  assumption.
-  destruct (less_0_false len).
+Fixpoint cut {A}{n}{y} (x : vector A (S n)) (len : y < S n) : vector A (S y).
+  elim/rect_leb : x/len.
+  intros.
+  exact (insert a (empty _)).
+  intros.
+  exact (insert a (empty _)).
+  intros.
+  refine (insert a (cut _ _ _ v (_leb' H))).
   Show Proof.
 Defined.
-
 
 
 Fixpoint set_value' {A}{n} (x : vector A (S n)) (u : nat) (v' : A) {struct x} : u < S n -> vector A (S n).
@@ -220,7 +219,6 @@ move => n0 a v H /=; rewrite H; move => //.
 done.
 Qed.
 
-
 Fixpoint update_vector_correctly {A} n y v (x : vector A (S n)) (H : y < S n) : get_value' (set_value' x v H) H = v.
   intros.
   elim/rect_leb : x/H.
@@ -229,4 +227,55 @@ Fixpoint update_vector_correctly {A} n y v (x : vector A (S n)) (H : y < S n) : 
   intros; simpl; unfold ssr_have; trivial.
 Qed.
 
-  
+Definition head : forall (A : Type) (n : nat) (x : vector A (S n)), A.
+  intros.
+  elim/rect : x.
+  intros; exact a.
+  intros; exact a.
+  Show Proof.
+Defined.
+
+Definition head' := 
+(fun (A : Type) (n : nat) (x : vector A (S n)) =>
+ (fun
+    (h : forall a : A,
+                (fun (n0 : nat) (_ : vector A (S n0)) => A) 0
+                  (insert a (empty A))) => rect h (fun a n0 (_ : vector A (S n0)) (_ : A) => a) x) id).
+
+
+Fixpoint last (A : Type) (n : nat) (x : vector A (S n)) {struct x} : A.
+elim/rect : x.
+intros; exact a.
+intros;refine (last _ _ v).
+Defined.
+
+Theorem conservation_last : forall A n (v : vector A (S n)) a, last v = last (insert a v).
+intros.
+elim/rect : v.
+intros; simpl in *; trivial.
+intros;simpl in *;trivial.
+Defined.
+
+Definition tail : forall (A : Type) (n : nat) (x : vector A (S n)), vector A n.
+ intros.
+ refine (match x in (vector _ n) with 
+           |insert x y => _
+           |empty _ => _
+         end).
+  exact y.
+  apply idProp.
+  Defined.
+ 
+ 
+Theorem head_is_a_cut {A} n y (x : vector A (S n)) (H : y < S n) : get_value' x H = last (cut x H).
+  intros.
+  elim/rect_leb : x/H.
+  intros; simpl in *; trivial.
+  intros; elim/@case0 : v; trivial.
+  intros.
+  intros; simpl in *;unfold ssr_have.
+  assumption.
+Qed.
+
+
+ 
