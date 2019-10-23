@@ -272,10 +272,68 @@ Theorem head_is_a_cut {A} n y (x : vector A (S n)) (H : y < S n) : get_value' x 
   elim/rect_leb : x/H.
   intros; simpl in *; trivial.
   intros; elim/@case0 : v; trivial.
-  intros.
   intros; simpl in *;unfold ssr_have.
   assumption.
 Qed.
 
 
- 
+Lemma symmetry_nat : forall x y : nat, (x + y)%nat = (y + x)%nat.
+intros.
+elim/nat_double_ind : x/y.
+move => n //.
+move => n' //.
+move => /= n m h.
+  have : forall n y : nat, (n + S y) % nat = S ((n + y)%nat).
+  intros.
+  induction n0.
+  simpl in *.
+  trivial.
+  simpl in *.
+  rewrite <- IHn0.
+  trivial.
+
+intros.
+do 2 ! rewrite (x _ _).
+rewrite h.
+trivial.
+Qed.
+
+Fixpoint concat {A} n n' (x : vector A n) (y : vector A n') {struct y}: vector A (n + n').
+induction y.
+set (concat _ _  _ (insert a x) y).
+  have : (n + S n0)%nat = (S n + n0)%nat.
+  pose (plus_n_Sm n n0).
+  rewrite <- e.
+  auto with arith.
+intros.
+rewrite <- x0 in v.
+exact v.
+rewrite (symmetry_nat _).
+rewrite (plus_O_n _).
+exact x.
+Show Proof.
+Defined.
+
+
+Lemma identy_length_vec : forall A n, vector A (n + 0) -> vector A n.
+intros.
+rewrite (symmetry_nat _) in X.
+rewrite (plus_O_n _) in X.
+trivial.
+Defined.
+
+
+Theorem empty_vec_identy_concat : forall A n (x : vector A n) (y : vector A 0),
+   identy_length_vec (concat x y) = x /\ concat y x = x.
+
+intros.
+constructor.
+elim/@case0 : y.
+induction x.
+Admitted.
+
+
+
+
+
+
