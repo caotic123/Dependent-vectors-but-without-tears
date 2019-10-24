@@ -157,17 +157,42 @@ Qed.
 
 Theorem less_0_false : forall x, ~ S x <= 0. auto with arith. Qed.
 
+(*a cut func that returns a non-empty cutted vector*)
 Fixpoint cut {A}{n}{y} (x : vector A (S n)) (len : y < S n) : vector A (S y).
   elim/rect_leb : x/len.
-  intros.
-  exact (insert a (empty _)).
-  intros.
-  exact (insert a (empty _)).
-  intros.
-  refine (insert a (cut _ _ _ v (_leb' H))).
+  intros;exact (insert a (empty _)).
+  intros;exact (insert a (empty _)).
+  intros;refine (insert a (cut _ _ _ v (_leb' H))).
   Show Proof.
 Defined.
 
+Fixpoint cut' {A}{n}{y} (x : vector A (S n)) (len : y < S n) : vector A y.
+  elim/rect_leb : x/len.
+  intros;exact (empty _).
+  intros;exact (empty _).
+  intros;refine (insert a (cut' _ _ _ v (_leb' H))).
+  Show Proof.
+Defined.
+
+Fixpoint drop {A}{n}{y} (x : vector A (S n)) (len : y < S n) : vector A ((S n) - y).
+  elim/rect_leb : x/len.
+  intros.
+  simpl.
+  exact (insert a v).
+  intros.
+  exact (insert a (empty _)).
+  intros.
+  set (drop _ _ _ v (_leb' H)).
+    have : forall n y, S n - S y = n - y.
+    intros;elim/nat_double_ind : n1/y1.
+    trivial.
+    trivial.
+    trivial.
+  move => H'.
+  rewrite (H' _ _).
+  exact v0.
+  Show Proof.
+Defined.
 
 Fixpoint set_value' {A}{n} (x : vector A (S n)) (u : nat) (v' : A) {struct x} : u < S n -> vector A (S n).
 move => c'.
@@ -298,19 +323,10 @@ rewrite h.
 trivial.
 Qed.
 
-Fixpoint concat {A} n n' (x : vector A n) (y : vector A n') {struct y}: vector A (n + n').
-induction y.
-set (concat _ _  _ (insert a x) y).
-  have : (n + S n0)%nat = (S n + n0)%nat.
-  pose (plus_n_Sm n n0).
-  rewrite <- e.
-  auto with arith.
-intros.
-rewrite <- x0 in v.
-exact v.
-rewrite (symmetry_nat _).
-rewrite (plus_O_n _).
-exact x.
+Fixpoint concat {A} n n' (x : vector A n) (y : vector A n') {struct x}: vector A (n + n').
+induction x.
+refine (insert a (concat _ _ _ x y)).
+exact y.
 Show Proof.
 Defined.
 
@@ -319,19 +335,150 @@ Lemma identy_length_vec : forall A n, vector A (n + 0) -> vector A n.
 intros.
 rewrite (symmetry_nat _) in X.
 rewrite (plus_O_n _) in X.
-trivial.
+exact X.
 Defined.
 
+Lemma identy_length_vec_inv : forall A n, vector A n -> vector A (n + 0).
+intros.
+rewrite (symmetry_nat _).
+simpl.
+exact X.
+Defined.
+
+Theorem length_identy_concat : forall A n (x : vector A n) (y : vector A 0),
+   length (concat x y) = n.
+intros.
+induction x.
+simpl in *;auto with arith.
+elim/@case0 : y;trivial.
+Qed.
+
+Fixpoint to_list a n (x : vector a n) : list a :=
+  match x with
+    | insert x x0 => cons x (to_list x0)
+    | empty _ => nil 
+  end.
+
+Definition size := List.length.
+
+Theorem length_to_list : forall a n (x : vector a n), size (to_list x) = n.
+  intros.
+  induction x.
+  simpl; auto with arith.
+  auto with arith.
+Qed.
+
+Definition caseS' {A} {n : nat} (v : vector A (S n)) : forall (P : vector A (S n) -> Type)
+  (H : forall h t, P (insert h t)), P v :=
+  match v with
+  | insert h t => fun P H => H h t
+  | _ => fun devil => False_rect (@IDProp) devil
+  end.
+
+Definition vector_2ind {A B} (P:forall {n}, vector A n -> vector B n -> Type)
+  (bas : P (empty _) (empty _)) (rect : forall {n v2} {v1 : vector A n} , P v1 v2 -> 
+    forall a b, P (insert a v1) (insert b v2)) : forall {n} (v1 : vector A n), forall v2 : vector B n, P v1 v2.
+
+  refine (fix rect2_fix {n} (v1 : vector A n) {struct v1}: forall v2 : vector B n, P n v1 v2 :=
+  match v1 with
+  | empty _ => fun v2 => case0 bas v2
+  | @insert  _ h1 n' t1 => fun v2 => _
+  end).
+
+elim/@caseS' : v2.
+intros.
+refine (rect h1 t t1 (rect2_fix h1 t1 t) n' h).
+Defined.
+
+Theorem injection_vec_to_list : forall a n (x : vector a n) (y : vector a n),
+  (to_list x) = (to_list y) -> x = y.
+  move => a n x y.
+  elim/@vector_2ind : x/y.
+  trivial.
+  intros.
+  simpl in *;injection H0.
+  move => I c.
+  apply H in I;rewrite I;rewrite c.
+  trivial.
+Qed.
+
+Theorem injection_len_to_list : forall a n n' (x : vector a n) (y : vector a n'),
+  (to_list x) = (to_list y) -> n = n'.
+  move => a n n' x y k.
+Admitted.
+
+Theorem head_is_cut2 : forall a n (I : 0 < S n) (x : vector a (S n)), 
+  head x = head (cut x I).
+intros.
+elim/rect_leb : x/I.
+trivial.
+intros; elim/@case0 : v; trivial.
+intros; trivial.
+Qed.
 
 Theorem empty_vec_identy_concat : forall A n (x : vector A n) (y : vector A 0),
-   identy_length_vec (concat x y) = x /\ concat y x = x.
+   concat y x = x.
+move => A n x y.
+elim/@case0 : y.
+simpl in *.
+trivial.
+Qed.
+
+Theorem empty_vec_identy_concat' : forall A n (x : vector A n) (y : vector A 0),
+   to_list (concat x y) = to_list x.
+move => A n x y.
+elim/@case0 : y.
+induction x.
+simpl in *.
+rewrite IHx; trivial.
+trivial.
+Qed.
+
+Theorem cut_drop_vec : forall a n y (v : vector a (S n)) (I : y < S n), to_list v = 
+    to_list (concat (drop v I) (cut' v I)).
 
 intros.
+elim/rect_leb : v/I.
+intros.
+simpl.
+pose (empty_vec_identy_concat' v (empty a)).
+rewrite e.
+trivial.
+intros.
+elim/@case0 : v; trivial.
+Admitted.
+
+
+Theorem set_cut_eq : forall A n (x : vector A (S n)) y (a : A) (I : y < S n) 
+  (init : (S n - y) < S n),
+   to_list (set_value' x a I) = 
+  to_list (concat (cut x init) (insert a (empty _))).
+Admitted.
+
+Theorem empty_vec_identy_concat : forall A n (x : vector A n) (y : vector A 0),
+   (concat x y) = identy_length_vec_inv x /\ concat y x = x
+
 constructor.
 elim/@case0 : y.
 induction x.
-Admitted.
+simpl.
+rewrite -> IHx.
+unfold concat in *.
+admit.
+simpl.
+unfold identy_length_vec.
+unfold eq_rect_r.
+unfold eq_rect.
+admit.
 
+elim/@case0 : y.
+induction x.
+simpl in *.
+trivial.
+trivial.
+
+Admitted.
+s
 
 
 
