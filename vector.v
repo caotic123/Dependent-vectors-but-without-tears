@@ -14,9 +14,6 @@ Inductive vector (A : Type) : nat -> Type :=
   |insert : forall (n : nat), A -> vector A n -> vector A (S n)
   |empty : vector A 0.
 
-Compute vector_ind.
-
-
 Definition case0 {A} (P: vector A 0 -> Type) (H:P (empty A)) v:P v :=
 match v with
   |empty _ => H
