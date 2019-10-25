@@ -618,8 +618,6 @@ intros.
 
 pose (~ P (size (to_list x)) (to_vector (to_list x))).
 unfold "~" in P0.
-  have : to_list x = to_list (to_vector (to_list x)).
-  admit.
 pose ((to_vector (to_list x))).
 have : (vector a (size (to_list x))).
 Admitted.
