@@ -8,7 +8,7 @@ Require Import Coq.Program.Equality.
 
 Require Import Notations.
 Require Import Logic.
-
+Require Import List.
 
 Inductive vector (A : Type) : nat -> Type :=
   |insert : forall (n : nat), A -> vector A n -> vector A (S n)
@@ -154,21 +154,29 @@ Qed.
 
 Theorem less_0_false : forall x, ~ S x <= 0. auto with arith. Qed.
 
-(*a cut func that returns a non-empty cutted vector*)
-Fixpoint cut {A}{n}{y} (x : vector A (S n)) (len : y < S n) : vector A (S y).
-  elim/rect_leb : x/len.
-  intros;exact (insert a (empty _)).
-  intros;exact (insert a (empty _)).
-  intros;refine (insert a (cut _ _ _ v (_leb' H))).
-  Show Proof.
-Defined.
-
 Fixpoint cut' {A}{n}{y} (x : vector A (S n)) (len : y < S n) : vector A y.
   elim/rect_leb : x/len.
   intros;exact (empty _).
   intros;exact (empty _).
   intros;refine (insert a (cut' _ _ _ v (_leb' H))).
   Show Proof.
+Defined.
+
+(*cut a n+1 position vector*)
+Fixpoint cut_list {A}{n}{y} (x : vector A (S n)) (len : y < S n) : list A.
+  elim/rect_leb : x/len.
+  intros.
+  exact nil.
+  intros;exact nil.
+  intros;refine (cons a (cut_list _ _ _ v (_leb' H))).
+  Show Proof.
+Defined.
+
+Lemma succ_eq_pred : forall n y, S n - S y = n - y.
+    intros;elim/nat_double_ind : n/y.
+    trivial.
+    trivial.
+    trivial.
 Defined.
 
 Fixpoint drop {A}{n}{y} (x : vector A (S n)) (len : y < S n) : vector A ((S n) - y).
@@ -180,14 +188,27 @@ Fixpoint drop {A}{n}{y} (x : vector A (S n)) (len : y < S n) : vector A ((S n) -
   exact (insert a (empty _)).
   intros.
   set (drop _ _ _ v (_leb' H)).
-    have : forall n y, S n - S y = n - y.
-    intros;elim/nat_double_ind : n1/y1.
-    trivial.
-    trivial.
-    trivial.
-  move => H'.
-  rewrite (H' _ _).
+  rewrite (succ_eq_pred _ _).
   exact v0.
+  Show Proof.
+Defined.
+
+Fixpoint to_list a n (x : vector a n) : list a :=
+  match x with
+    | insert x x0 => cons x (to_list x0)
+    | empty _ => nil 
+  end.
+
+Fixpoint drop_list {A}{n}{y} (x : vector A (S n)) (len : y < S n) : list A.
+  elim/rect_leb : x/len.
+  intros.
+  simpl.
+  exact (to_list v).
+  intros.
+  exact nil.
+  intros.
+  set (drop_list _ _ _ v (_leb' H)).
+  exact l.
   Show Proof.
 Defined.
 
@@ -287,9 +308,20 @@ Definition tail : forall (A : Type) (n : nat) (x : vector A (S n)), vector A n.
   exact y.
   apply idProp.
   Defined.
- 
- 
-Theorem head_is_a_cut {A} n y (x : vector A (S n)) (H : y < S n) : get_value' x H = last (cut x H).
+
+Fixpoint take {A}{n}{y} (x : vector A (S n)) (len : y < S n) : vector A (S y).
+  elim/rect_leb : x/len.
+  intros;exact (insert a (empty _)).
+  intros;exact (insert a (empty _)).
+  intros;refine (insert a (take _ _ _ v (_leb' H))).
+  Show Proof.
+Defined.
+(*the behavouir of take is different of cut, the "cut" of take remains the nth 
+  element found, take [1, 2, 3] of 1 returns [1, 2] in other hand cut using the 
+  same paremeters returns [1]*, besides that take always returns a non-empty vector
+  and cut not) *)
+
+Theorem head_is_a_cut {A} n y (x : vector A (S n)) (H : y < S n) : get_value' x H = last (take x H).
   intros.
   elim/rect_leb : x/H.
   intros; simpl in *; trivial.
@@ -297,7 +329,6 @@ Theorem head_is_a_cut {A} n y (x : vector A (S n)) (H : y < S n) : get_value' x 
   intros; simpl in *;unfold ssr_have.
   assumption.
 Qed.
-
 
 Lemma symmetry_nat : forall x y : nat, (x + y)%nat = (y + x)%nat.
 intros.
@@ -350,12 +381,6 @@ simpl in *;auto with arith.
 elim/@case0 : y;trivial.
 Qed.
 
-Fixpoint to_list a n (x : vector a n) : list a :=
-  match x with
-    | insert x x0 => cons x (to_list x0)
-    | empty _ => nil 
-  end.
-
 Definition size := List.length.
 
 Theorem length_to_list : forall a n (x : vector a n), size (to_list x) = n.
@@ -387,7 +412,7 @@ intros.
 refine (rect h1 t t1 (rect2_fix h1 t1 t) n' h).
 Defined.
 
-Theorem injection_vec_to_list : forall a n (x : vector a n) (y : vector a n),
+Theorem _vec_to_list : forall a n (x : vector a n) (y : vector a n),
   (to_list x) = (to_list y) -> x = y.
   move => a n x y.
   elim/@vector_2ind : x/y.
@@ -399,13 +424,68 @@ Theorem injection_vec_to_list : forall a n (x : vector a n) (y : vector a n),
   trivial.
 Qed.
 
+Theorem injection_vec_to_list' : forall a n (x : vector a n) (y : vector a n),
+  x = y -> (to_list x) = (to_list y).
+  intros; move : H.
+  elim/@vector_2ind : x/y.
+  trivial.
+  intros;rewrite H0;trivial.
+Qed.
+
+Definition ind2_vector (A : Type) (P:forall {n} {m}, vector A n -> vector A m -> Type)
+(*induction for two vectors that non-necessarily have the same length
+  you should notice that this induction doesn't fit well for all cases of
+  theorems of double vectors, because it's always halts in the cases :
+     (empty, empty)
+     (insert _ _, empty) or
+     (empty _, insert _ _)
+  this should be okay for a comparasion proof for example, but not proofs that still perfoming recursion in thouse cases *)
+
+ (bas0: P (empty _) (empty _))
+ (cons2 : forall n m (x : vector A n) (y : vector A m) a a', P x y -> 
+    P (insert a x) (insert a' y))
+ (cons' : forall n (x : vector A n) a, P (insert a x) (empty _))
+ (cons'1 : forall n (y : vector A n) a, P (empty _) (insert a y)) : 
+    forall {n} (v: vector A n) {m} (v' : vector A m), P v v'.
+ refine (fix v_fix {n} (v: vector A n) {struct v} : forall {m} 
+  (v' : vector A m), P _ _ v v' := _).
+destruct v.
+intros.
+destruct v'.
+refine (cons2 _ _  v v' a a0 (v_fix _ v _ v')).
+refine (cons' _ v a).
+intros.
+destruct v'.
+refine (cons'1 _ v' a).
+refine bas0.
+Defined.
+
 Theorem injection_len_to_list : forall a n n' (x : vector a n) (y : vector a n'),
   (to_list x) = (to_list y) -> n = n'.
-  move => a n n' x y k.
-Admitted.
+  move => a n n' x y.
+  elim/ind2_vector : x/y.
+  trivial.
+  intros; simpl in *. injection H0; move => I'; set (H I').
+  auto with arith.
+  intros; inversion H.
+  intros; inversion H.
+Qed.
 
-Theorem head_is_cut2 : forall a n (I : 0 < S n) (x : vector a (S n)), 
-  head x = head (cut x I).
+Theorem take_always_returns_non_empty_vector :
+   forall {A} n y (x : vector A (S n)) (x' : vector A 0) (H : y < S n), ~  to_list (take x H) = to_list x'.
+move => a n y x; elim/@case0.
+move : x; elim/rect.
+move => a0 H.
+move => H'.
+set (injection_len_to_list H').
+inversion e.
+move => a0 n0 v H K' vec_absurd.
+set (injection_len_to_list vec_absurd).
+inversion e.
+Qed.
+
+Theorem head_is_take2 : forall a n (I : 0 < S n) (x : vector a (S n)), 
+  head x = head (take x I).
 intros.
 elim/rect_leb : x/I.
 trivial.
@@ -431,29 +511,121 @@ rewrite IHx; trivial.
 trivial.
 Qed.
 
-Theorem cut_drop_vec : forall a n y (v : vector a (S n)) (I : y < S n), to_list v = 
-    to_list (concat (drop v I) (cut' v I)).
+
+Theorem pred_injectivity : forall A (a : A) 
+   n (v : vector A n) v' a', insert a v = insert a' v' -> v = v' \/ a = a'.
+
+intros.
+(*god wish that injection H will given a simply a = a' -> v = v', but 
+  it returns a sigma type :( so, this way is the more easy to prove injectiviy of vectors*)
+
+pose (let get_v A n (v' : vector A (S n)) :=
+   match v' in (vector _ (S n)) return (vector _ n) with
+     |insert a v => v
+   end in get_v A n).
+
+constructor.
+
+apply (@eq_rect _ (insert a v) (fun x => v = (v0 x)) eq_refl (insert a' v') H).
+Qed.
+
+Export ListNotations.
+
+Theorem cut_drop_vec' : forall a n y (v : vector a (S n)) (I : y < S n), to_list v = 
+    (cut_list v I) ++ [(get_value' v I)] ++ (drop_list v I)  .
 
 intros.
 elim/rect_leb : v/I.
+simpl; trivial.
 intros.
-simpl.
-pose (empty_vec_identy_concat' v (empty a)).
-rewrite e.
+elim/@case0 : v.
+simpl; trivial.
+intros;simpl in *; unfold ssr_have; rewrite H0; trivial.
+Qed.
+
+Theorem cut_drop_set_vec' : forall a n y x (v : vector a (S n)) (I : y < S n), to_list (set_value' v x I) = 
+    (cut_list v I) ++ [x] ++ (drop_list v I)  .
+
+intros.
+replace [x] with [(get_value' (set_value' v x I) I)].
+
+elim/rect_leb : v/I.
+intros;simpl; trivial.
+intros.
+elim/@case0 : v; simpl; trivial.
+intros;simpl in *; unfold ssr_have; rewrite H0; trivial.
+set (@update_vector_correctly a _ _ x v I).
+symmetry in e.
+rewrite <- e.
+trivial.
+Qed.
+
+Fixpoint to_vector {A} (x : list A) {struct x} : vector A (size x).
+induction x.
+refine (empty _).
+refine (insert a (to_vector _ x)).
+Defined.
+
+Theorem to_list_vector : forall a n (v : vector a n) (P : forall n, vector a n -> Prop),
+ to_list (to_vector (to_list v)) = to_list v.
+
+intros.
+induction n.
+elim/@case0 : v.
+trivial.
+  have : forall v, to_list (to_vector (to_list v)) = to_list v.
+  intros.
+  induction v0.
+  simpl.
+  rewrite IHv0; trivial.
+  trivial.
+move => H'.
+rewrite H'.
+apply : eq_refl.
+Qed.
+
+(*Theorem to_list_holds : forall a n m v (x : vector a n) (y : vector a m) (P : forall n, vector a n -> Prop),
+ (P _ x -> P _ y) -> P _ (insert v x) -> P _ (insert v' x).
+*)
+
+Theorem to_list_holds : forall a n m (x : vector a n) (y : vector a m) (P : forall n, vector a n -> Prop),
+ to_list x = to_list y -> P _ (to_vector (to_list x)) -> P _ (to_vector (to_list y)).
+
+intros.
+move : H H0.
+elim/@ind2_vector : x/y.
 trivial.
 intros.
-elim/@case0 : v; trivial.
+injection H0.
+intros.
+set (H H2).
+simpl in *.
+rewrite <- H2.
+rewrite <- H3.
+assumption.
+
+intros.
+inversion H.
+intros.
+inversion H.
+Show Proof.
+Qed.
+
+Theorem to_list_holds2 : forall a n (x : vector a n)
+  (P : forall n, vector a n -> Prop), P _ (to_vector (to_list x)) -> P _ x.
+
+intros.
+
+pose (~ P (size (to_list x)) (to_vector (to_list x))).
+unfold "~" in P0.
+  have : to_list x = to_list (to_vector (to_list x)).
+  admit.
+pose ((to_vector (to_list x))).
+have : (vector a (size (to_list x))).
 Admitted.
 
-
-Theorem set_cut_eq : forall A n (x : vector A (S n)) y (a : A) (I : y < S n) 
-  (init : (S n - y) < S n),
-   to_list (set_value' x a I) = 
-  to_list (concat (cut x init) (insert a (empty _))).
-Admitted.
-
-Theorem empty_vec_identy_concat : forall A n (x : vector A n) (y : vector A 0),
-   (concat x y) = identy_length_vec_inv x /\ concat y x = x
+Theorem empty_vec_identy_list : forall A n (x : vector A n) (y : vector A 0),
+   to_list (concat x y) = to_list x.
 
 constructor.
 elim/@case0 : y.
@@ -475,7 +647,7 @@ trivial.
 trivial.
 
 Admitted.
-s
+
 
 
 
