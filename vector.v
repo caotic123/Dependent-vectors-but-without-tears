@@ -618,8 +618,6 @@ intros.
 
 pose (~ P (size (to_list x)) (to_vector (to_list x))).
 unfold "~" in P0.
-pose ((to_vector (to_list x))).
-have : (vector a (size (to_list x))).
 Admitted.
 
 Theorem empty_vec_identy_list : forall A n (x : vector A n) (y : vector A 0),
