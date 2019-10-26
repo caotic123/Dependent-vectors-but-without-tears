@@ -2,7 +2,7 @@
 
 ![suprised](https://i.imgur.com/QeYRZXV.jpg)
 
-you when you are trying proving something with vector and get a weird problem.
+*you when you are trying proving something with vector and get a weird problem*
 
 Indexed lists sometimes can be tricky to figure out when you got a weird term in your proof.
 This project aims a simply formalization of dependent vectors but including a set of theorems enough to you get free of 
