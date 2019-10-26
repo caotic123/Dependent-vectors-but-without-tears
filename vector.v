@@ -1,5 +1,3 @@
- Require Import Arith.
-
 From Coq Require Import ssreflect ssrfun ssrbool.
 Set Implicit Arguments.
 Unset Strict Implicit.
@@ -9,6 +7,9 @@ Require Import Coq.Program.Equality.
 Require Import Notations.
 Require Import Logic.
 Require Import List.
+Require Import helper.
+Require Import Arith.
+
 
 Inductive vector (A : Type) : nat -> Type :=
   |insert : forall (n : nat), A -> vector A n -> vector A (S n)
@@ -39,18 +40,7 @@ exact idProp.
 exact (rect a _ v1 (rectS_fix _ v1)).
 Defined.
 
-Lemma _leb : forall x y, x < S y -> x < (S (S y)).
-move => x y.
-elim.
-auto with arith.
-move => H' H0 H1.
-unfold "<" in *.
-constructor; move => //.
-Qed.
-
-Lemma _leb' : forall x y, S x < S y -> x < y.
-auto with arith.
-Qed.
+Compute _leb.
 
 Ltac unfold_to_leb_definition := unfold ">" in *; unfold "<" in *.
 
@@ -97,18 +87,6 @@ refine (rect a _ _ H0 v1 (rectS_fix _ _ (_leb' H0) v1)).
 Defined.
 
 
-Definition rect_vector : forall {A} (P:forall {n} {y}, y <= n -> vector A (S n) -> Prop)
- (rect: forall a {n} {y} (v: vector A (S n)) (H : S y <= S n),
-   P (le_S_n _ _ H) v -> P H (insert a v)), 
-  forall {n} {y} (v: vector A (S n)) (H : y <= n), P H v.
-move => T P f.
-refine (fix fixed_ind_cons_vec (n y : nat) (v : vector T (S n)) (H : y <= n) 
-  := _).
-
-
-Admitted.
-
-
 Definition vector_ind_with_leb : forall (A : Type) (P : forall n y: nat, y <= n -> vector A n -> Prop),
        (forall (n : nat) (y : nat) (H : S y <= S n) (a : A) (v : vector A n),
         P n y (le_S_n _ _ H) v -> P (S n) (S y) H (insert a v)) ->
@@ -134,25 +112,16 @@ inversion Heq.
 Show Proof.
 Defined.
 
-Ltac vector_leb_induction v' H := elim/vector_ind_with_leb : v'/H; intros.
-
-Example len_decrescing : forall {y : nat} {n : nat}, (S y) <= n -> y <= n.
-elim => y.
-move => H; apply : le_0_n.
-move => /= H' w d.
-auto with arith.
-Qed.
-
 Example vectorBiggerThan1Empty : forall {A} {y : nat} {n : nat}
-   (h : vector A 0), ~ (S y) <= 0.
-intros.
-cbv; move => d.
-set absurd := (le_0_n (S y)).
-apply le_not_gt in d.
-auto with arith.
+   (h : vector A (S n)), 
+  ~ let len x := match x with
+     |insert _ _ => true
+     |_ => false
+  end = false in len h.
+intros;elim/rect : h.
+intros;simpl;move => H1;inversion H1.
+intros;simpl in *;auto.
 Qed.
-
-Theorem less_0_false : forall x, ~ S x <= 0. auto with arith. Qed.
 
 Fixpoint cut' {A}{n}{y} (x : vector A (S n)) (len : y < S n) : vector A y.
   elim/rect_leb : x/len.
@@ -170,13 +139,6 @@ Fixpoint cut_list {A}{n}{y} (x : vector A (S n)) (len : y < S n) : list A.
   intros;exact nil.
   intros;refine (cons a (cut_list _ _ _ v (_leb' H))).
   Show Proof.
-Defined.
-
-Lemma succ_eq_pred : forall n y, S n - S y = n - y.
-    intros;elim/nat_double_ind : n/y.
-    trivial.
-    trivial.
-    trivial.
 Defined.
 
 Fixpoint drop {A}{n}{y} (x : vector A (S n)) (len : y < S n) : vector A ((S n) - y).
@@ -328,27 +290,6 @@ Theorem head_is_a_cut {A} n y (x : vector A (S n)) (H : y < S n) : get_value' x 
   intros; elim/@case0 : v; trivial.
   intros; simpl in *;unfold ssr_have.
   assumption.
-Qed.
-
-Lemma symmetry_nat : forall x y : nat, (x + y)%nat = (y + x)%nat.
-intros.
-elim/nat_double_ind : x/y.
-move => n //.
-move => n' //.
-move => /= n m h.
-  have : forall n y : nat, (n + S y) % nat = S ((n + y)%nat).
-  intros.
-  induction n0.
-  simpl in *.
-  trivial.
-  simpl in *.
-  rewrite <- IHn0.
-  trivial.
-
-intros.
-do 2 ! rewrite (x _ _).
-rewrite h.
-trivial.
 Qed.
 
 Fixpoint concat {A} n n' (x : vector A n) (y : vector A n') {struct x}: vector A (n + n').
@@ -611,38 +552,20 @@ inversion H.
 Show Proof.
 Qed.
 
-Theorem to_list_holds2 : forall a n (x : vector a n)
-  (P : forall n, vector a n -> Prop), P _ (to_vector (to_list x)) -> P _ x.
 
+Fixpoint fold n a b (x : vector a (S n)) (f : a -> b -> b) (i : b) {struct x} : b.
+elim/@rect : x.
 intros.
+apply (f a0 i).
+intros.
+apply (f a0 (fold _ _ _ v f i)).
+Qed.
 
-pose (~ P (size (to_list x)) (to_vector (to_list x))).
-unfold "~" in P0.
+
+Theorem to_list_holds2 : forall a ls (x : vector a (size ls))
+  (P : forall n, vector a n -> Prop), ls = to_list x -> P _ (to_vector ls)  -> P _ x.
 Admitted.
 
-Theorem empty_vec_identy_list : forall A n (x : vector A n) (y : vector A 0),
-   to_list (concat x y) = to_list x.
-
-constructor.
-elim/@case0 : y.
-induction x.
-simpl.
-rewrite -> IHx.
-unfold concat in *.
-admit.
-simpl.
-unfold identy_length_vec.
-unfold eq_rect_r.
-unfold eq_rect.
-admit.
-
-elim/@case0 : y.
-induction x.
-simpl in *.
-trivial.
-trivial.
-
-Admitted.
 
 
 
