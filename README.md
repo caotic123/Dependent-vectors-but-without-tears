@@ -1,7 +1,7 @@
 # Dependent-vectors-but-withou-tears-.
 
 
-[suprised](https://i.imgur.com/WBQ5LaV.jpg)
+![suprised](https://i.imgur.com/WBQ5LaV.jpg)
 You when you try proof something with vector and gets a weired problem.
 
 
