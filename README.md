@@ -11,6 +11,7 @@ your problems with dependent vectors.
 There are some other formalizations and set of theorems about dependent vectors :
   
    (the standard library of Vectors in Coq, VectorDef)
+   
    (Stdpp - A great extension of coq library, thanks Robbert) https://gitlab.mpi-sws.org/iris/stdpp
    
 
