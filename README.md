@@ -1,6 +1,6 @@
 # Dependent-vectors-but-withou-tears-.
 
-![suprised](https://i.imgur.com/WBQ5LaV.jpg =200x100)
+![suprised](https://i.imgur.com/WBQ5LaV.jpg)
 
 you when you are trying proving something with vector and get a weird problem.
 
