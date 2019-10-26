@@ -1,6 +1,7 @@
 # Dependent-vectors-but-withou-tears-.
 
-![suprised](https://i.imgur.com/WBQ5LaV.jpg)
+![suprised](https://i.imgur.com/WBQ5LaV.jpg =200x100)
+
 you when you are trying proving something with vector and get a weird problem.
 
 Indexed lists sometimes can be tricky to figure out when you got a weird term in your proof.
