@@ -1,4 +1,4 @@
-# Dependent-vectors-but-withou-tears-.
+# Dependent-vectors-but-without-tears-.
 
 ![suprised](https://i.imgur.com/QeYRZXV.jpg)
 
@@ -24,6 +24,10 @@ Basically, the goal of this project is to be as simple as possible, that include
 
 Now, the library contains the functions of the standard library of coq and the most part of theorems in vector/stdpp.
 If this library doesn't fit your project, I really recommend the stdpp library.
+
+
+There are so many things to make vectors easier yet. So, anything creates an issue or a pull request.
+
 
 Question or anything?
    camposferreiratiago@gmail.com
